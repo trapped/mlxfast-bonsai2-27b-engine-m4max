@@ -559,6 +559,8 @@ public struct EngineBuild: Sendable {
     public var schedulerConfig: CBv2SchedulerConfig
     public var loopConfig: CBv2EngineLoopConfig
     public var prefixCache: (any CBv2PrefixCache)?
+    /// bonsai-fast: exact recurrent-state prefix checkpoints (hybrid models).
+    public var hybridPrefixCache: CBv2HybridPrefixCacheConfig? = nil
     /// Must be in `runner.loadedDecoders`.
     public var decoder: DecoderID
     public var mtpConfig: CBv2MTPConfig
@@ -1040,7 +1042,7 @@ public enum RunnerEngineAssembly {
         }
 
         var schedulerConfig = build.schedulerConfig
-        schedulerConfig.enablePrefixCache = build.prefixCache != nil
+        schedulerConfig.enablePrefixCache = build.prefixCache != nil || build.hybridPrefixCache != nil
 
         // A BLOCK drafter reads the TARGET's hidden state at named layers, so
         // the target has to keep those layers on every forward. Arm that tap
@@ -1061,6 +1063,7 @@ public enum RunnerEngineAssembly {
             schedulerConfig: schedulerConfig,
             loopConfig: build.loopConfig,
             prefixCache: build.prefixCache,
+            hybridPrefixCache: build.hybridPrefixCache,
             mtpDrafter: build.decoder == .serial ? nil : mtpDrafter,
             mtpConfig: build.decoder == .serial
                 ? CBv2MTPConfig(enabled: false) : build.mtpConfig)

@@ -678,7 +678,12 @@ public final class HadamardQuantizedLinear: QuantizedLinear {
 
     /// The core's vector-versus-matrix threshold for this pack's shapes on the
     /// M5 generation: fewer rows than this take the scalar vector kernel.
-    private static let matrixRegimeMinimumRows = 13
+    /// `MLXFAST_MATRIX_MIN_ROWS` overrides it (bonsai-fast): on a pre-M5 GPU
+    /// there is no tensor kernel to pad into, and padding an 8-row verify to
+    /// 13 rows moves it from `qmv_wide` onto the 32-row tile at twice the cost.
+    private static let matrixRegimeMinimumRows: Int = {
+        Int(ProcessInfo.processInfo.environment["MLXFAST_MATRIX_MIN_ROWS"] ?? "") ?? 13
+    }()
     /// A projection at least this wide is a vocabulary head. Its products are
     /// logits that an argmax reads directly, so it keeps the FP32 read (TF32
     /// tensor products, FP32 logits) and the cached widened constants; only

@@ -437,7 +437,7 @@ public final class BenchWorkerServer: @unchecked Sendable {
         build: String,
         device: String,
         kvBytesCapacity: Int,
-        maxDecodeTokens: Int = 4096,
+        maxDecodeTokens: Int = Int(ProcessInfo.processInfo.environment["MLXFAST_MAX_DECODE_TOKENS"] ?? "") ?? 4096,
         memory: any WorkerMemoryReporter = MLXMemoryReporter(),
         residentIdentity: ResidentIdentity? = nil,
         residentWeights: String? = nil,

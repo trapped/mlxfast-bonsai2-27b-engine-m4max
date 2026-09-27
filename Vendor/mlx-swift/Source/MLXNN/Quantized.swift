@@ -358,7 +358,21 @@ open class QuantizedLinear: Linear, Quantized {
     /// Shared arithmetic path; FP16 widening reuse is private and opt-in for
     /// an eligible packed-Hadamard caller. Ordinary quantized layers retain
     /// the established BF16-only cache contract.
+    /// bonsai-fast: see affine_bonsai_qmv2 (MLXFAST_BONSAI_QMV2=1).
+    static let bonsaiQmv2: Bool = {
+        let v = ProcessInfo.processInfo.environment["MLXFAST_BONSAI_QMV2"] ?? ""
+        return !v.isEmpty && v != "0"
+    }()
+
     func constantCachedForward(_ x: MLXArray, allowFloat16: Bool) -> MLXArray {
+        if Self.bonsaiQmv2, mode == .affine, bits == 2, groupSize == 128, bias == nil,
+            x.dtype == .float32, x.size == x.dim(-1), scales.dtype == .float16,
+            let biases, biases.dtype == .float16, weight.dim(0) % 16 == 0
+        {
+            return quantizedMM(
+                x, weight, scales: scales, biases: biases, transpose: true,
+                groupSize: groupSize, bits: bits, mode: mode)
+        }
         // The native affine operation already widens BF16 constants when x
         // is FP32. Reuse precisely that conversion, without changing its
         // promotion policy or touching MXFP4's packed U8 scales.

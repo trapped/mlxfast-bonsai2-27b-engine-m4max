@@ -3595,3 +3595,67 @@ template <typename T, int group_size, int bits, bool has_global_scale = false>
     }
   }
 }
+
+// bonsai-fast: 2-bit affine GEMV for ONE activation row (group 128). FP32
+// math; x is pre-scaled by 4^-i so each masked code multiplies it directly
+// (and + convert + fma per weight); R output rows per simdgroup reuse each x
+// chunk from registers. Pre-M5 GPUs are ALU-bound on the stock 2-bit qmv.
+template <typename T, int group_size, int bits, int R, int SGS, typename S = T>
+[[kernel]] void affine_bonsai_qmv2(
+    const device uint32_t* w [[buffer(0)]],
+    const device S* scales [[buffer(1)]],
+    const device S* biases [[buffer(2)]],
+    const device T* x [[buffer(3)]],
+    device T* y [[buffer(4)]],
+    const constant int& K [[buffer(5)]],
+    const constant int& N [[buffer(6)]],
+    uint3 tid [[threadgroup_position_in_grid]],
+    uint simd_gid [[simdgroup_index_in_threadgroup]],
+    uint simd_lid [[thread_index_in_simdgroup]]) {
+  static_assert(bits == 2 && group_size == 128, "bonsai_qmv2: 2-bit gs128 only");
+  const int KW = K / 16;
+  const int KG = K / 128;
+  const int row0 = (int(tid.x) * SGS + int(simd_gid)) * R;
+  float acc[R];
+#pragma unroll
+  for (int r = 0; r < R; r++) {
+    acc[r] = 0.0f;
+  }
+  for (int c = int(simd_lid); c < K / 32; c += 32) {
+    float xv[32];
+    float xs = 0.0f;
+#pragma unroll
+    for (int i = 0; i < 32; i += 4) {
+      const float4 v = float4(x[c * 32 + i], x[c * 32 + i + 1], x[c * 32 + i + 2], x[c * 32 + i + 3]);
+      xs += (v.x + v.y) + (v.z + v.w);
+      const int j = i & 15;
+      xv[i] = v.x * exp2(-2.0f * float(j));
+      xv[i + 1] = v.y * exp2(-2.0f * float(j + 1));
+      xv[i + 2] = v.z * exp2(-2.0f * float(j + 2));
+      xv[i + 3] = v.w * exp2(-2.0f * float(j + 3));
+    }
+    const int g = c >> 2;
+#pragma unroll
+    for (int r = 0; r < R; r++) {
+      const int row = row0 + r;
+      const uint2 wv = ((const device uint2*)(w + row * KW))[c];
+      float d0 = 0.0f, d1 = 0.0f;
+#pragma unroll
+      for (int i = 0; i < 16; i++) {
+        d0 = fma(float(wv.x & (3u << (2 * i))), xv[i], d0);
+        d1 = fma(float(wv.y & (3u << (2 * i))), xv[16 + i], d1);
+      }
+      acc[r] += float(scales[row * KG + g]) * (d0 + d1) +
+          float(biases[row * KG + g]) * xs;
+    }
+  }
+#pragma unroll
+  for (int r = 0; r < R; r++) {
+    const float v = simd_sum(acc[r]);
+    if (simd_lid == 0) {
+      y[row0 + r] = static_cast<T>(v);
+    }
+  }
+}
+
+

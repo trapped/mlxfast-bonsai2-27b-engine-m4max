@@ -166,7 +166,7 @@ public final class BenchWorkerResident: @unchecked Sendable {
         device: String,
         kvBytesCapacity: Int,
         pidfilePath: String? = nil,
-        maxDecodeTokens: Int = 4096,
+        maxDecodeTokens: Int = Int(ProcessInfo.processInfo.environment["MLXFAST_MAX_DECODE_TOKENS"] ?? "") ?? 4096,
         memory: any WorkerMemoryReporter = MLXMemoryReporter(),
         loadEpoch: UInt64 = DispatchTime.now().uptimeNanoseconds,
         nonceFactory: @escaping @Sendable () -> String = { UUID().uuidString }

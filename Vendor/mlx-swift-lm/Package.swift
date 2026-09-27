@@ -66,6 +66,12 @@ let package = Package(
             name: "bench-worker",
             targets: ["bench-worker"]),
         .executable(
+            name: "bonsai-serve",
+            targets: ["bonsai-serve"]),
+        .executable(
+            name: "bonsai-kbench",
+            targets: ["bonsai-kbench"]),
+        .executable(
             name: "mlx-server",
             targets: ["mlx-server"]),
         .library(
@@ -191,6 +197,24 @@ let package = Package(
             ],
             path: "Executables/bench-worker",
             plugins: ["BenchRevisionStamp"]
+        ),
+        .executableTarget(
+            name: "bonsai-kbench",
+            dependencies: [
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXNN", package: "mlx-swift"),
+            ],
+            path: "Executables/bonsai-kbench"
+        ),
+        // bonsai-fast: persistent single-stream serving worker with prefix reuse.
+        .executableTarget(
+            name: "bonsai-serve",
+            dependencies: [
+                "MLXRunners",
+                "MLXLMCommon",
+                .product(name: "MLX", package: "mlx-swift"),
+            ],
+            path: "Executables/bonsai-serve"
         ),
         .target(
             name: "BenchmarkHelpers",

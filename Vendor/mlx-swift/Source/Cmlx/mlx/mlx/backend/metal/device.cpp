@@ -892,6 +892,11 @@ NS::SharedPtr<MTL::LinkedFunctions> Device::get_linked_functions_(
   return lfuncs;
 }
 
+std::unordered_map<const void*, std::string>& mlxfast_kernel_names() {
+  static std::unordered_map<const void*, std::string> names;
+  return names;
+}
+
 MTL::ComputePipelineState* Device::get_kernel_(
     const std::string& base_name,
     MTL::Library* mtl_lib,
@@ -919,6 +924,7 @@ MTL::ComputePipelineState* Device::get_kernel_(
 
   // Add kernel to cache
   kernel_map_.insert({hash_name, kernel});
+  mlxfast_kernel_names()[kernel.get()] = hash_name;
 
   return kernel.get();
 }

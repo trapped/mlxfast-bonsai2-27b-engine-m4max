@@ -3,6 +3,8 @@
 #pragma once
 
 #include <Metal/Metal.hpp>
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <mutex>
 #include <shared_mutex>
@@ -16,6 +18,8 @@
 #include "mlx/device.h"
 
 namespace mlx::core::metal {
+
+std::unordered_map<const void*, std::string>& mlxfast_kernel_names();
 
 using MTLFCList =
     std::vector<std::tuple<const void*, MTL::DataType, NS::UInteger>>;
@@ -58,6 +62,12 @@ class MLX_API CommandEncoder {
   void maybeInsertBarrier();
 
   void set_compute_pipeline_state(MTL::ComputePipelineState* kernel) {
+    static const bool trace_kernels = std::getenv("MLXFAST_TRACE_KERNELS") != nullptr;
+    if (trace_kernels) {
+      auto& m = mlxfast_kernel_names();
+      auto it = m.find(kernel);
+      fprintf(stderr, "KDISPATCH %s\n", it == m.end() ? "?" : it->second.c_str());
+    }
     get_command_encoder()->setComputePipelineState(kernel);
   }
 

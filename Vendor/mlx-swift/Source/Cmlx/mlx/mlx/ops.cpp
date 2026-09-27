@@ -4813,7 +4813,21 @@ array quantized_matmul(
     throw std::invalid_argument(msg.str());
   }
   std::vector<array> inputs;
-  if (qmode == QuantizationMode::Affine) {
+  // bonsai-fast: a single-row 2-bit gs128 FP32 product over FP16 constants
+  // keeps the constants as stored; affine_bonsai_qmv2 widens them exactly
+  // in-register (same values the astype would produce, no per-call copy).
+  static const bool bonsai_qmv2_f16c = [] {
+    auto v = std::getenv("MLXFAST_BONSAI_QMV2");
+    return v && std::string(v) != "0";
+  }();
+  const int k_in = x.shape(-1);
+  if (bonsai_qmv2_f16c && qmode == QuantizationMode::Affine && transpose &&
+      bits == 2 && group_size == 128 && x.dtype() == float32 &&
+      scales.dtype() == float16 && biases && biases->dtype() == float16 &&
+      x.size() == static_cast<size_t>(k_in) && w.ndim() == 2 &&
+      k_in % 32 == 0 && w_outer_dims % 64 == 0) {
+    inputs = {x, w, scales, *biases};
+  } else if (qmode == QuantizationMode::Affine) {
     inputs = {
         astype(x, dtype), w, astype(scales, dtype), astype(*biases, dtype)};
   } else {

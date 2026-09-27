@@ -480,6 +480,44 @@ void qmv(
     const std::string& mode) {
   int B = out.size() / M / N;
 
+  // bonsai-fast: single-row 2-bit gs128 FP32 GEMV (see affine_bonsai_qmv2).
+  static const bool bonsai_qmv2 = [] {
+    auto v = std::getenv("MLXFAST_BONSAI_QMV2");
+    return v && std::string(v) != "0";
+  }();
+  if (bonsai_qmv2 && mode == "affine" && bits == 2 && group_size == 128 &&
+      !global_scale && biases && x.dtype() == float32 && M == 1 && B == 1 &&
+      K % 32 == 0 && scales.dtype() == biases->dtype() &&
+      (scales.dtype() == float32 || scales.dtype() == float16)) {
+    const bool wide_k = K > 8192;
+    auto env_int = [](const char* n, int d) { auto v = std::getenv(n); return v ? std::atoi(v) : d; };
+    static const int r_n = env_int("MLXFAST_QMV2_R", 2), s_n = env_int("MLXFAST_QMV2_SGS", 4);
+    static const int r_w = env_int("MLXFAST_QMV2_RW", 8), s_w = env_int("MLXFAST_QMV2_SGSW", 2);
+    const int R = wide_k ? r_w : r_n;
+    const int SGS = wide_k ? s_w : s_n;
+    if (N % (R * SGS) == 0) {
+      std::string kname;
+      const bool half_consts = scales.dtype() == float16;
+      concatenate(kname, "affine_bonsai_qmv2_float_gs_128_b_2_r", R, "_s", SGS,
+                  half_consts ? "_c16" : "");
+      auto template_def = get_template_definition(
+          kname, "affine_bonsai_qmv2", "float", group_size, bits, R, SGS,
+          half_consts ? "half" : "float");
+      auto kernel = get_quantized_kernel(d, kname, template_def, mode);
+      auto& enc = metal::get_command_encoder(s);
+      enc.set_compute_pipeline_state(kernel);
+      enc.set_input_array(w, 0);
+      enc.set_input_array(scales, 1);
+      enc.set_input_array(*biases, 2);
+      enc.set_input_array(x, 3);
+      enc.set_output_array(out, 4);
+      enc.set_bytes(K, 5);
+      enc.set_bytes(N, 6);
+      enc.dispatch_threadgroups(MTL::Size(N / (R * SGS), 1, 1), MTL::Size(32 * SGS, 1, 1));
+      return;
+    }
+  }
+
   int bn = 8;
   int bk = 32;
 
@@ -1068,12 +1106,24 @@ void qmm(
   int wn = 2;
   int bm = 32;
   int bn = 32;
+  int bk = 32;
+  // bonsai-fast: larger tiles for wide prompt matmuls on non-NAX GPUs
+  // amortize each dequantized weight tile over more rows.
+  static const int env_bm = [] { auto v = std::getenv("MLXFAST_QMM_BM"); return v ? std::atoi(v) : 0; }();
+  static const int env_bn = [] { auto v = std::getenv("MLXFAST_QMM_BN"); return v ? std::atoi(v) : 0; }();
+  static const int env_bk = [] { auto v = std::getenv("MLXFAST_QMM_BK"); return v ? std::atoi(v) : 0; }();
+  static const int env_min_m = [] { auto v = std::getenv("MLXFAST_QMM_BIG_MIN_M"); return v ? std::atoi(v) : 64; }();
+  if (transpose && M >= env_min_m) {
+    if (env_bm) bm = env_bm;
+    if (env_bn && N % env_bn == 0) bn = env_bn;
+    if (env_bk && K % env_bk == 0 && group_size % env_bk == 0) bk = env_bk;
+  }
   MTL::Size group_dims(32, wn, wm);
   MTL::Size grid_dims((N + bn - 1) / bn, (M + bm - 1) / bm, B);
 
   std::string kname;
   kname.reserve(64);
-  bool aligned = N % 32 == 0;
+  bool aligned = N % bn == 0;
   bool batched = B > 1;
   std::string type_string = get_type_string(x.dtype());
   concatenate(
@@ -1086,9 +1136,17 @@ void qmm(
       bits,
       transpose ? (aligned ? "_alN_true" : "_alN_false") : "",
       batched ? "_batch_1" : "_batch_0");
+  bool custom_tile = transpose && (bm != 32 || bn != 32 || bk != 32);
+  if (custom_tile) {
+    concatenate(kname, "_bm", bm, "_bk", bk, "_bn", bn);
+  }
   std::string template_def;
   MTL::ComputePipelineState* kernel;
-  if (transpose) {
+  if (custom_tile) {
+    kernel = get_quantized_kernel_wrapped(
+        d, kname, "qmm_t", mode, type_string, group_size, bits, aligned, batched,
+        bm, bk, bn);
+  } else if (transpose) {
     kernel = get_quantized_kernel_wrapped(
         d,
         kname,
@@ -1265,12 +1323,24 @@ void gather_qmm(
   int wn = 2;
   int bm = 32;
   int bn = 32;
+  int bk = 32;
+  // bonsai-fast: larger tiles for wide prompt matmuls on non-NAX GPUs
+  // amortize each dequantized weight tile over more rows.
+  static const int env_bm = [] { auto v = std::getenv("MLXFAST_QMM_BM"); return v ? std::atoi(v) : 0; }();
+  static const int env_bn = [] { auto v = std::getenv("MLXFAST_QMM_BN"); return v ? std::atoi(v) : 0; }();
+  static const int env_bk = [] { auto v = std::getenv("MLXFAST_QMM_BK"); return v ? std::atoi(v) : 0; }();
+  static const int env_min_m = [] { auto v = std::getenv("MLXFAST_QMM_BIG_MIN_M"); return v ? std::atoi(v) : 64; }();
+  if (transpose && M >= env_min_m) {
+    if (env_bm) bm = env_bm;
+    if (env_bn && N % env_bn == 0) bn = env_bn;
+    if (env_bk && K % env_bk == 0 && group_size % env_bk == 0) bk = env_bk;
+  }
   MTL::Size group_dims(32, wn, wm);
   MTL::Size grid_dims((N + bn - 1) / bn, (M + bm - 1) / bm, B);
 
   std::string kname;
   kname.reserve(64);
-  bool aligned = N % 32 == 0;
+  bool aligned = N % bn == 0;
   std::string type_string = get_type_string(x.dtype());
   concatenate(
       kname,
@@ -2030,6 +2100,7 @@ void QuantizedMatmul::eval_gpu(const std::vector<array>& inputs, array& out) {
 
   int vector_limit = transpose_ ? get_qmv_batch_limit(K, N, d) : 4;
   auto mode = quantization_mode_to_string(mode_);
+
   // It is a matrix matrix product.
   if (M >= vector_limit) {
     // Use split-K qmm for small M with transposed weights (non-batched only)
