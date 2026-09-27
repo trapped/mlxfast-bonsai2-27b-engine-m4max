@@ -1,0 +1,10 @@
+{"mode": "serial", "depth": 0, "prompt": "code", "decode_tok_s": 27.1, "ttft_s": 0.347, "rss_gb": 0.5, "accept_rate": null, "mean_committed_per_round": 1.0}
+{"mode": "serial", "depth": 0, "prompt": "prose", "decode_tok_s": 25.5, "ttft_s": 0.302, "rss_gb": 0.5, "accept_rate": null, "mean_committed_per_round": 1.0}
+{"mode": "dflash", "depth": 1, "prompt": "code", "decode_tok_s": 8.5, "ttft_s": 0.381, "rss_gb": 0.5, "accept_rate": 0.855, "mean_committed_per_round": 1.86}
+{"mode": "dflash", "depth": 1, "prompt": "prose", "decode_tok_s": 7.2, "ttft_s": 0.213, "rss_gb": 0.5, "accept_rate": 0.62, "mean_committed_per_round": 1.62}
+{"mode": "dflash", "depth": 3, "prompt": "code", "decode_tok_s": 13.7, "ttft_s": 0.387, "rss_gb": 0.5, "accept_rate": 0.733, "mean_committed_per_round": 3.2}
+{"mode": "dflash", "depth": 3, "prompt": "prose", "decode_tok_s": 10.0, "ttft_s": 0.227, "rss_gb": 0.5, "accept_rate": 0.472, "mean_committed_per_round": 2.42}
+{"mode": "dflash", "depth": 7, "prompt": "code", "decode_tok_s": 17.6, "ttft_s": 0.394, "rss_gb": 0.5, "accept_rate": 0.477, "mean_committed_per_round": 4.34}
+{"mode": "dflash", "depth": 7, "prompt": "prose", "decode_tok_s": 10.4, "ttft_s": 0.236, "rss_gb": 0.5, "accept_rate": 0.238, "mean_committed_per_round": 2.67}
+{"mode": "dflash", "depth": 15, "prompt": "code", "decode_tok_s": 15.8, "ttft_s": 0.408, "rss_gb": 0.5, "accept_rate": 0.218, "mean_committed_per_round": 4.27}
+{"mode": "dflash", "depth": 15, "prompt": "prose", "decode_tok_s": 10.0, "ttft_s": 0.238, "rss_gb": 0.4, "accept_rate": 0.113, "mean_committed_per_round": 2.69}

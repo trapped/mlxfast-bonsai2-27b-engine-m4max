@@ -1,0 +1,9 @@
+[project]
+name = "bonsai-fast"
+version = "0.1.0"
+description = "Local OpenAI-compatible server over mlxfast-bonsai2-27b-engine"
+requires-python = ">=3.12"
+dependencies = ["transformers", "jinja2", "psutil"]
+
+[tool.uv]
+package = false

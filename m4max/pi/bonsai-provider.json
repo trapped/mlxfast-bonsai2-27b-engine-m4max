@@ -1,0 +1,24 @@
+{
+  "baseUrl": "http://127.0.0.1:8000/v1",
+  "api": "openai-completions",
+  "apiKey": "none",
+  "compat": {
+    "supportsDeveloperRole": false,
+    "supportsReasoningEffort": false,
+    "supportsUsageInStreaming": true,
+    "maxTokensField": "max_tokens",
+    "supportsStrictMode": false
+  },
+  "models": [
+    {
+      "id": "bonsai2-27b",
+      "name": "Ternary Bonsai 2 27B (mlxfast, local)",
+      "reasoning": true,
+      "input": ["text"],
+      "contextWindow": 49152,
+      "maxTokens": 16384,
+      "compat": { "thinkingFormat": "qwen-chat-template" },
+      "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+    }
+  ]
+}

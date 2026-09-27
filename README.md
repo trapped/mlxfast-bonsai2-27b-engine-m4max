@@ -1,3 +1,10 @@
+> **This is `trapped/mlxfast-bonsai2-27b-engine-m4max`**, a fork of
+> [`Layr-Labs/mlxfast-bonsai2-27b-engine`](https://github.com/Layr-Labs/mlxfast-bonsai2-27b-engine)
+> tuned for **Apple M4 Max** (GPU gen 16, no NAX). It tracks upstream `main` and adds M4 fixes and
+> optimizations, plus a local OpenAI-compatible server for coding agents. See
+> **[`m4max/README.md`](m4max/README.md)**. Quick start: `m4max/setup.sh && m4max/run-server.sh`.
+> Everything below this box is upstream's README, unchanged.
+
 # mlxfast — Ternary Bonsai 2 27B MLX
 
 This repository is the engine for the Ternary Bonsai 2 27B MLX
