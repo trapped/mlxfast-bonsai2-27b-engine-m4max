@@ -121,7 +121,7 @@ METAL_FUNC void gemm_loop_finalize(
 // (half x half -> fp32 accumulate for a half activation; fp32 inputs are
 // TF32-class), the same classes qmm_t_nax and the split-K NAX body use.
 ///////////////////////////////////////////////////////////////////////////////
-#if defined(__METAL_VERSION__) && (__METAL_VERSION__ >= 400) && \
+#if defined(MLXFAST_PLAIN_KERNEL_NAX) && defined(__METAL_VERSION__) && (__METAL_VERSION__ >= 400) && \
     defined(__has_include)
 #if __has_include(<MetalPerformancePrimitives/MetalPerformancePrimitives.h>)
 #define MLX_QMM_M16_NAX 1

@@ -2229,7 +2229,7 @@ template <
 // cooperative-tensor copies follow steel/gemm/nax.h (BaseNAXFrag::get_coord /
 // mma) as used by qmm_t_nax. Products run at the tensor unit's FP32-input
 // precision (TF32-class, like qmm_t_nax), not the FP32 FMAs of the SIMD path.
-#if defined(__METAL_VERSION__) && (__METAL_VERSION__ >= 400) && \
+#if defined(MLXFAST_PLAIN_KERNEL_NAX) && defined(__METAL_VERSION__) && (__METAL_VERSION__ >= 400) && \
     defined(__has_include)
 #if __has_include(<MetalPerformancePrimitives/MetalPerformancePrimitives.h>)
 #define MLX_QMM_SPLITK_NAX 1
